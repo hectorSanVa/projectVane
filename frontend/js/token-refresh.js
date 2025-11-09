@@ -7,6 +7,8 @@
 
 let isRefreshing = false;
 let refreshPromise = null;
+// Guardar referencia al fetch original ANTES de interceptarlo
+const originalFetch = window.fetch.bind(window);
 
 /**
  * Intenta renovar el token usando el refresh token
@@ -29,8 +31,9 @@ async function refreshToken() {
                 return null;
             }
 
+            // SIEMPRE usar originalFetch para evitar bucle infinito
             const apiUrl = (window.Config && window.Config.API_URL) || 'http://localhost:8080';
-            const response = await fetch(`${apiUrl}/api/refresh`, {
+            const response = await originalFetch(`${apiUrl}/api/refresh`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -140,8 +143,9 @@ async function fetchWithAuth(url, options = {}) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
+    // SIEMPRE usar originalFetch para evitar bucle infinito
     // Realizar solicitud
-    let response = await fetch(url, {
+    let response = await originalFetch(url, {
         ...options,
         headers
     });
@@ -154,7 +158,7 @@ async function fetchWithAuth(url, options = {}) {
         if (newToken) {
             // Reintentar la solicitud con el nuevo token
             headers['Authorization'] = `Bearer ${newToken}`;
-            response = await fetch(url, {
+            response = await originalFetch(url, {
                 ...options,
                 headers
             });
@@ -172,22 +176,53 @@ async function fetchWithAuth(url, options = {}) {
 
 /**
  * Interceptar fetch global para manejar automáticamente la renovación de tokens
- * Solo intercepta solicitudes a localhost:8080
+ * Solo intercepta solicitudes a nuestro servidor
  */
 function setupFetchInterceptor() {
-    const originalFetch = window.fetch;
+    // Verificar si ya se interceptó para evitar múltiples interceptaciones
+    if (window.fetch._isIntercepted) {
+        return;
+    }
     
     window.fetch = async function(url, options = {}) {
         // Solo interceptar solicitudes a nuestro servidor
         const apiUrl = (window.Config && window.Config.API_URL) || 'http://localhost:8080';
-        const apiHost = new URL(apiUrl).hostname;
-        if (typeof url === 'string' && (url.includes(apiHost) || url.includes('localhost:8080'))) {
+        
+        // Verificar si la URL es relativa o absoluta
+        let shouldIntercept = false;
+        if (typeof url === 'string') {
+            // Si la URL es relativa (empieza con /), interceptar si es para nuestro servidor
+            if (url.startsWith('/api') || url.startsWith('/contenidos') || url.startsWith('/health')) {
+                shouldIntercept = true;
+            }
+            // Si la URL es absoluta, verificar si es para nuestro servidor
+            else {
+                try {
+                    const urlObj = new URL(url, window.location.origin);
+                    const apiUrlObj = new URL(apiUrl);
+                    // Interceptar si es el mismo host y puerto
+                    if (urlObj.hostname === apiUrlObj.hostname && urlObj.port === apiUrlObj.port) {
+                        shouldIntercept = true;
+                    }
+                } catch (e) {
+                    // Si no se puede parsear la URL, verificar si contiene el hostname
+                    if (url.includes('localhost:8080') || url.includes(apiUrl.replace(/^https?:\/\//, ''))) {
+                        shouldIntercept = true;
+                    }
+                }
+            }
+        }
+        
+        if (shouldIntercept) {
             return fetchWithAuth(url, options);
         }
         
-        // Para otras URLs, usar fetch normal
+        // Para otras URLs, usar fetch original
         return originalFetch(url, options);
     };
+    
+    // Marcar como interceptado para evitar múltiples interceptaciones
+    window.fetch._isIntercepted = true;
 }
 
 // Configurar interceptor cuando el módulo se carga

@@ -77,24 +77,30 @@ echo ""
 
 # Abrir navegador
 echo "Abriendo navegador..."
-FRONTEND_PATH="$SCRIPT_DIR/frontend/index.html"
+# IMPORTANTE: Usar http://localhost:8080 en lugar de abrir el archivo directamente
+# Esto evita problemas de CORS y WebSocket en Mac
+FRONTEND_URL="http://localhost:8080"
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
-    open "$FRONTEND_PATH"
+    open "$FRONTEND_URL"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Linux
-    xdg-open "$FRONTEND_PATH" 2>/dev/null || \
-    sensible-browser "$FRONTEND_PATH" 2>/dev/null || \
-    echo "⚠️  No se pudo abrir el navegador. Abre manualmente: $FRONTEND_PATH"
+    xdg-open "$FRONTEND_URL" 2>/dev/null || \
+    sensible-browser "$FRONTEND_URL" 2>/dev/null || \
+    echo "⚠️  No se pudo abrir el navegador. Abre manualmente: $FRONTEND_URL"
 fi
 
 echo ""
 echo "========================================"
 echo "  Servidor iniciado en nueva ventana"
-echo "  Navegador abierto"
+echo "  Navegador abierto en http://localhost:8080"
 echo "  Puedes cerrar esta ventana"
 echo "========================================"
+echo ""
+echo "💡 IMPORTANTE:"
+echo "   - El navegador se abrió en http://localhost:8080"
+echo "   - NO abras index.html directamente (causa errores en Mac)"
 echo ""
 echo "💡 Si el servidor no inició, ejecuta manualmente:"
 echo "   cd backend && npm start"

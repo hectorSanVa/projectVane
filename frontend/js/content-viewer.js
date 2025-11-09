@@ -286,8 +286,8 @@ async function verContenido(contenidoId, tipo, cursoIdParam = null) {
                 `;
                 
                 // Configurar seguimiento después de un breve delay para que el iframe se cargue
-                setTimeout(() => {
-                    configurarSeguimientoPDF(contenidoId, contenido.curso_id);
+                setTimeout(async () => {
+                    await configurarSeguimientoPDF(contenidoId, contenido.curso_id);
                 }, 500);
                 
                 console.log('PDF iframe creado');
@@ -366,7 +366,7 @@ async function verContenido(contenidoId, tipo, cursoIdParam = null) {
                         }
                     </style>
                 `;
-                configurarSeguimientoVideo(contenidoId, contenido.curso_id);
+                await configurarSeguimientoVideo(contenidoId, contenido.curso_id);
                 configurarControlesVideo(contenidoId);
                 console.log('Video configurado');
                 
@@ -395,8 +395,8 @@ async function verContenido(contenidoId, tipo, cursoIdParam = null) {
                         </div>
                     `;
                     // Configurar seguimiento después de un breve delay para asegurar que el DOM esté listo
-                    setTimeout(() => {
-                        configurarSeguimientoTexto(contenidoId, contenido.curso_id);
+                    setTimeout(async () => {
+                        await configurarSeguimientoTexto(contenidoId, contenido.curso_id);
                     }, 100);
                     console.log('Texto cargado');
                 } catch (error) {
@@ -598,7 +598,7 @@ function reintentarPDF(contenidoId, cursoId) {
 }
 
 // Configurar seguimiento de progreso para PDF
-function configurarSeguimientoPDF(contenidoId, cursoId) {
+async function configurarSeguimientoPDF(contenidoId, cursoId) {
     console.log('Configurando seguimiento de PDF:', contenidoId, cursoId);
     
     const iframe = document.getElementById(`pdf-iframe-${contenidoId}`);
@@ -611,6 +611,56 @@ function configurarSeguimientoPDF(contenidoId, cursoId) {
     const modal = document.getElementById('content-modal');
     if (!modal || modal.classList.contains('hidden')) {
         console.warn('⚠️ Modal cerrado, no se configurará seguimiento de PDF');
+        return;
+    }
+    
+    // Verificar si el PDF ya estaba completado
+    let yaCompletado = false;
+    try {
+        const user = getCurrentUser();
+        if (user && user.rol === 'estudiante') {
+            // Intentar obtener del backend primero
+            if (navigator.onLine && typeof fetchApi === 'function') {
+                const response = await fetchApi(`/api/estudiante/cursos/${cursoId}/progreso`);
+                if (response.ok) {
+                    const progresos = await response.json();
+                    const progresoEncontrado = progresos.find(p => 
+                        parseInt(p.contenido_id) === contenidoId && 
+                        parseInt(p.curso_id) === cursoId
+                    );
+                    if (progresoEncontrado) {
+                        yaCompletado = progresoEncontrado.completado || false;
+                        console.log(`✅ Progreso actual del PDF ${contenidoId}: completado=${yaCompletado}`);
+                    }
+                }
+            }
+            
+            // Si no se encontró en el backend, intentar desde IndexedDB
+            if (!yaCompletado && typeof offlineStorage !== 'undefined') {
+                const progresos = await offlineStorage.getProgresosPendientes();
+                const progresoEncontrado = progresos.find(p => 
+                    parseInt(p.contenido_id) === contenidoId && 
+                    parseInt(p.curso_id) === cursoId
+                );
+                if (progresoEncontrado) {
+                    yaCompletado = progresoEncontrado.completado || false;
+                    console.log(`✅ Progreso actual del PDF ${contenidoId} (desde IndexedDB): completado=${yaCompletado}`);
+                }
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Error al obtener progreso actual del PDF (continuando de todas formas):', error);
+    }
+    
+    // Si ya está completado, no marcar progreso nuevamente
+    if (yaCompletado) {
+        console.log(`✅ PDF ${contenidoId} ya estaba completado. No se marcará progreso nuevo.`);
+        // Aún así, verificar después de 30 segundos para asegurar que se mantenga en 100%
+        setTimeout(() => {
+            if (typeof marcarProgresoAutomatico === 'function' && !window.modalCerrandose) {
+                marcarProgresoAutomatico(cursoId, contenidoId, 100, true);
+            }
+        }, 30000);
         return;
     }
     
@@ -683,11 +733,60 @@ function configurarSeguimientoPDF(contenidoId, cursoId) {
 }
 
 // Configurar seguimiento de progreso para video
-function configurarSeguimientoVideo(contenidoId, cursoId) {
+async function configurarSeguimientoVideo(contenidoId, cursoId) {
     const video = document.getElementById(`video-player-${contenidoId}`);
     if (!video) return;
     
+    // Obtener el progreso actual guardado para inicializar progresoMaximo
     let progresoMaximo = 0;
+    let yaCompletado = false;
+    
+    try {
+        const user = getCurrentUser();
+        if (user && user.rol === 'estudiante') {
+            // Intentar obtener del backend primero
+            if (navigator.onLine && typeof fetchApi === 'function') {
+                const response = await fetchApi(`/api/estudiante/cursos/${cursoId}/progreso`);
+                if (response.ok) {
+                    const progresos = await response.json();
+                    const progresoEncontrado = progresos.find(p => 
+                        parseInt(p.contenido_id) === contenidoId && 
+                        parseInt(p.curso_id) === cursoId
+                    );
+                    if (progresoEncontrado) {
+                        progresoMaximo = parseFloat(progresoEncontrado.avance) || 0;
+                        yaCompletado = progresoEncontrado.completado || false;
+                        console.log(`✅ Progreso actual del video ${contenidoId}: ${progresoMaximo}% (completado: ${yaCompletado})`);
+                    }
+                }
+            }
+            
+            // Si no se encontró en el backend, intentar desde IndexedDB
+            if (progresoMaximo === 0 && typeof offlineStorage !== 'undefined') {
+                const progresos = await offlineStorage.getProgresosPendientes();
+                const progresoEncontrado = progresos.find(p => 
+                    parseInt(p.contenido_id) === contenidoId && 
+                    parseInt(p.curso_id) === cursoId
+                );
+                if (progresoEncontrado) {
+                    progresoMaximo = parseFloat(progresoEncontrado.avance) || 0;
+                    yaCompletado = progresoEncontrado.completado || false;
+                    console.log(`✅ Progreso actual del video ${contenidoId} (desde IndexedDB): ${progresoMaximo}% (completado: ${yaCompletado})`);
+                }
+            }
+            
+            // Si ya está completado, restaurar el video a donde estaba
+            if (yaCompletado && progresoMaximo >= 100 && video.duration) {
+                console.log(`✅ Video ${contenidoId} ya estaba completado. Restaurando a posición final.`);
+                // No restaurar la posición, dejar que el usuario decida si quiere verlo de nuevo
+                // Pero asegurar que el progreso se mantenga en 100%
+                progresoMaximo = 100;
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Error al obtener progreso actual del video (continuando de todas formas):', error);
+    }
+    
     let ultimaActualizacion = 0;
     const INTERVALO_ACTUALIZACION = 5000; // Actualizar cada 5 segundos
     
@@ -747,15 +846,24 @@ function configurarSeguimientoVideo(contenidoId, cursoId) {
         const progreso = (video.currentTime / video.duration) * 100;
         const ahora = Date.now();
         
+        // IMPORTANTE: Solo actualizar progresoMaximo si el nuevo progreso es MAYOR
+        // Esto previene que el progreso baje cuando se vuelve a abrir un contenido completado
         if (progreso > progresoMaximo) {
             progresoMaximo = progreso;
+        }
+        // Si ya estaba completado, mantener en 100%
+        else if (yaCompletado && progresoMaximo < 100) {
+            progresoMaximo = 100;
         }
         
         // Actualizar progreso cada 5 segundos para no sobrecargar
         if (ahora - ultimaActualizacion >= INTERVALO_ACTUALIZACION) {
             ultimaActualizacion = ahora;
             if (typeof marcarProgresoAutomatico === 'function') {
-                marcarProgresoAutomatico(cursoId, contenidoId, Math.round(progresoMaximo), progresoMaximo >= 90);
+                // Si ya estaba completado, forzar a 100%
+                const avanceFinal = yaCompletado ? 100 : Math.round(progresoMaximo);
+                const completadoFinal = yaCompletado || progresoMaximo >= 90;
+                marcarProgresoAutomatico(cursoId, contenidoId, avanceFinal, completadoFinal);
             }
         }
     });
@@ -874,7 +982,7 @@ function reintentarVideo(contenidoId) {
 }
 
 // Configurar seguimiento de progreso para texto
-function configurarSeguimientoTexto(contenidoId, cursoId) {
+async function configurarSeguimientoTexto(contenidoId, cursoId) {
     console.log('📝 Configurando seguimiento de texto para contenido:', contenidoId, 'curso:', cursoId);
     
     // Buscar el contenedor del texto (el div con scroll)
@@ -889,7 +997,55 @@ function configurarSeguimientoTexto(contenidoId, cursoId) {
     
     console.log('✅ Contenedor de texto encontrado:', textoContainer);
     
+    // Obtener el progreso actual guardado para inicializar scrollMaximo
     let scrollMaximo = 0;
+    let yaCompletado = false;
+    
+    try {
+        const user = getCurrentUser();
+        if (user && user.rol === 'estudiante') {
+            // Intentar obtener del backend primero
+            if (navigator.onLine && typeof fetchApi === 'function') {
+                const response = await fetchApi(`/api/estudiante/cursos/${cursoId}/progreso`);
+                if (response.ok) {
+                    const progresos = await response.json();
+                    const progresoEncontrado = progresos.find(p => 
+                        parseInt(p.contenido_id) === contenidoId && 
+                        parseInt(p.curso_id) === cursoId
+                    );
+                    if (progresoEncontrado) {
+                        const avanceGuardado = parseFloat(progresoEncontrado.avance) || 0;
+                        scrollMaximo = avanceGuardado;
+                        yaCompletado = progresoEncontrado.completado || false;
+                        console.log(`✅ Progreso actual del texto ${contenidoId}: ${scrollMaximo}% (completado: ${yaCompletado})`);
+                    }
+                }
+            }
+            
+            // Si no se encontró en el backend, intentar desde IndexedDB
+            if (scrollMaximo === 0 && typeof offlineStorage !== 'undefined') {
+                const progresos = await offlineStorage.getProgresosPendientes();
+                const progresoEncontrado = progresos.find(p => 
+                    parseInt(p.contenido_id) === contenidoId && 
+                    parseInt(p.curso_id) === cursoId
+                );
+                if (progresoEncontrado) {
+                    const avanceGuardado = parseFloat(progresoEncontrado.avance) || 0;
+                    scrollMaximo = avanceGuardado;
+                    yaCompletado = progresoEncontrado.completado || false;
+                    console.log(`✅ Progreso actual del texto ${contenidoId} (desde IndexedDB): ${scrollMaximo}% (completado: ${yaCompletado})`);
+                }
+            }
+            
+            // Si ya está completado, mantener en 100%
+            if (yaCompletado && scrollMaximo < 100) {
+                scrollMaximo = 100;
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Error al obtener progreso actual del texto (continuando de todas formas):', error);
+    }
+    
     let ultimaActualizacion = 0;
     const INTERVALO_ACTUALIZACION = 2000; // Actualizar cada 2 segundos
     
@@ -910,9 +1066,12 @@ function configurarSeguimientoTexto(contenidoId, cursoId) {
             scrollHeight,
             clientHeight,
             progreso: Math.round(progreso),
-            scrollMaximo: Math.round(scrollMaximo)
+            scrollMaximo: Math.round(scrollMaximo),
+            yaCompletado: yaCompletado
         });
         
+        // IMPORTANTE: Solo actualizar scrollMaximo si el nuevo progreso es MAYOR
+        // Esto previene que el progreso baje cuando se vuelve a abrir un contenido completado
         if (progreso > scrollMaximo) {
             scrollMaximo = progreso;
             const ahora = Date.now();
@@ -920,8 +1079,9 @@ function configurarSeguimientoTexto(contenidoId, cursoId) {
             // Actualizar progreso cada 2 segundos para no sobrecargar
             if (ahora - ultimaActualizacion >= INTERVALO_ACTUALIZACION) {
                 ultimaActualizacion = ahora;
-                const avance = Math.round(scrollMaximo);
-                const completado = scrollMaximo >= 90;
+                // Si ya estaba completado, forzar a 100%
+                const avance = yaCompletado ? 100 : Math.round(scrollMaximo);
+                const completado = yaCompletado || scrollMaximo >= 90;
                 
                 console.log('💾 Guardando progreso de texto:', { avance, completado });
                 if (typeof marcarProgresoAutomatico === 'function' && !window.modalCerrandose) {
@@ -929,15 +1089,28 @@ function configurarSeguimientoTexto(contenidoId, cursoId) {
                 }
             }
         }
+        // Si ya estaba completado, mantener en 100%
+        else if (yaCompletado && scrollMaximo < 100) {
+            scrollMaximo = 100;
+            const ahora = Date.now();
+            if (ahora - ultimaActualizacion >= INTERVALO_ACTUALIZACION) {
+                ultimaActualizacion = ahora;
+                console.log('✅ Texto ya estaba completado. Manteniendo en 100%.');
+                if (typeof marcarProgresoAutomatico === 'function' && !window.modalCerrandose) {
+                    marcarProgresoAutomatico(cursoId, contenidoId, 100, true);
+                }
+            }
+        }
         
         // Si el usuario llega al final (95% o más), marcar como completado
-        if (scrollMaximo >= 95 && scrollMaximo < 100) {
+        if (scrollMaximo >= 95 && scrollMaximo < 100 && !yaCompletado) {
             const ahora = Date.now();
             if (ahora - ultimaActualizacion >= INTERVALO_ACTUALIZACION) {
                 ultimaActualizacion = ahora;
                 console.log('✅ Texto completado (95%+), marcando como completado');
                 if (typeof marcarProgresoAutomatico === 'function' && !window.modalCerrandose) {
                     marcarProgresoAutomatico(cursoId, contenidoId, 100, true);
+                    yaCompletado = true;
                 }
             }
         }
@@ -1001,11 +1174,66 @@ async function marcarProgresoAutomatico(cursoId, contenidoId, avance, completado
         return;
     }
     
+    // IMPORTANTE: Obtener el progreso actual guardado para evitar que baje
+    let progresoActual = null;
+    try {
+        // Intentar obtener del backend primero
+        if (navigator.onLine && typeof fetchApi === 'function') {
+            const response = await fetchApi(`/api/estudiante/cursos/${cursoId}/progreso`);
+            if (response.ok) {
+                const progresos = await response.json();
+                const progresoEncontrado = progresos.find(p => 
+                    parseInt(p.contenido_id) === contenidoId && 
+                    parseInt(p.curso_id) === cursoId
+                );
+                if (progresoEncontrado) {
+                    progresoActual = {
+                        avance: parseFloat(progresoEncontrado.avance) || 0,
+                        completado: progresoEncontrado.completado || false
+                    };
+                }
+            }
+        }
+        
+        // Si no se encontró en el backend, intentar desde IndexedDB
+        if (!progresoActual && typeof offlineStorage !== 'undefined') {
+            const progresos = await offlineStorage.getProgresosPendientes();
+            const progresoEncontrado = progresos.find(p => 
+                parseInt(p.contenido_id) === contenidoId && 
+                parseInt(p.curso_id) === cursoId
+            );
+            if (progresoEncontrado) {
+                progresoActual = {
+                    avance: parseFloat(progresoEncontrado.avance) || 0,
+                    completado: progresoEncontrado.completado || false
+                };
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Error al obtener progreso actual (continuando de todas formas):', error);
+    }
+    
     // Asegurar que el avance esté entre 0 y 100
     avance = Math.max(0, Math.min(100, Math.round(avance)));
     
+    // REGLA IMPORTANTE: Si el contenido ya estaba completado (100%), NO permitir que baje
+    if (progresoActual && progresoActual.completado) {
+        console.log(`✅ Contenido ${contenidoId} ya estaba completado al 100%. Manteniendo progreso en 100%.`);
+        avance = 100;
+        completado = true;
+    }
+    // Si el contenido ya tenía un progreso mayor, no permitir que baje
+    else if (progresoActual && progresoActual.avance > avance) {
+        console.log(`📊 Contenido ${contenidoId} tenía progreso ${progresoActual.avance}%. No permitiendo que baje a ${avance}%.`);
+        avance = progresoActual.avance;
+        // Si el progreso anterior era >= 90%, mantener completado
+        if (progresoActual.avance >= 90) {
+            completado = true;
+            avance = 100;
+        }
+    }
     // Si el avance es >= 90%, considerar completado automáticamente
-    if (avance >= 90 && !completado) {
+    else if (avance >= 90 && !completado) {
         completado = true;
         avance = 100;
     }

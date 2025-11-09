@@ -48,19 +48,30 @@ const Config = {
         Config.API_URL = 'http://localhost:8080';
         Config.WS_URL = 'ws://localhost:8080';
     }
-    // Si estamos en la misma red, intentar detectar la IP del servidor
-    else if (window.location.protocol === 'file:') {
-        // Si se abre desde file://, usar localhost por defecto
-        // El usuario deberá configurar manualmente la IP del servidor
-        console.warn('Aplicación abierta desde archivo local. Usando localhost por defecto.');
-        console.warn('Para usar en red local, configura API_URL y WS_URL en config.js');
-    }
-    // Si estamos en un servidor web, usar la misma URL
-    else {
+    // Si estamos en la misma red (dirección IP), usar esa IP
+    else if (/^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname)) {
         const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
         const host = window.location.host;
         Config.API_URL = `${protocol}//${host}`;
         Config.WS_URL = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}`;
+    }
+    // Si estamos en un servidor web (dominio), usar la misma URL
+    else if (window.location.hostname && window.location.hostname !== '') {
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        const host = window.location.host;
+        Config.API_URL = `${protocol}//${host}`;
+        Config.WS_URL = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}`;
+    }
+    // Si se abre desde file://, usar localhost por defecto
+    else if (window.location.protocol === 'file:') {
+        // Si se abre desde file://, usar localhost por defecto
+        // El usuario deberá configurar manualmente la IP del servidor
+        console.warn('⚠️ Aplicación abierta desde archivo local (file://).');
+        console.warn('💡 Para mejor funcionamiento, accede desde: http://localhost:8080');
+        console.warn('💡 O configura API_URL y WS_URL en config.js para usar en red local');
+        // Usar localhost por defecto
+        Config.API_URL = 'http://localhost:8080';
+        Config.WS_URL = 'ws://localhost:8080';
     }
 })();
 

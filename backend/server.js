@@ -717,6 +717,62 @@ app.get('/api/contenidos/:id/resultados', asyncHandler(async (req, res) => {
 const tutorRoutes = require('./routes/tutor');
 app.use('/api/tutor', tutorRoutes);
 
+// Servir archivos estáticos del frontend (CSS, JS, imágenes, etc.)
+// IMPORTANTE: Debe ir después de las rutas API pero antes del errorHandler
+const frontendPath = path.join(__dirname, '../frontend');
+app.use(express.static(frontendPath, {
+  index: false, // No servir index.html automáticamente, lo serviremos manualmente
+  setHeaders: (res, filePath) => {
+    // Configurar headers apropiados para archivos estáticos
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.html') {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    } else if (ext === '.css') {
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    } else if (ext === '.js') {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    }
+    // Habilitar CORS para archivos estáticos
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+}));
+
+// Ruta para servir index.html en la raíz
+app.get('/', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
+});
+
+// Ruta catch-all: servir index.html para todas las rutas que no sean API/contenidos/ws
+// Esto permite que el frontend maneje el routing (SPA - Single Page Application)
+// IMPORTANTE: Esta ruta debe ir DESPUÉS de servir archivos estáticos pero ANTES del errorHandler
+app.get('*', (req, res, next) => {
+  // Si la ruta comienza con /api, /contenidos, /ws, no servir index.html
+  if (req.path.startsWith('/api') || 
+      req.path.startsWith('/contenidos') || 
+      req.path.startsWith('/ws') ||
+      req.path.startsWith('/health')) {
+    return next(); // Pasar al siguiente middleware (errorHandler)
+  }
+  
+  // Si la ruta tiene una extensión de archivo común (ej: .css, .js, .png, .jpg, etc.),
+  // no servir index.html (dejar que express.static o errorHandler lo maneje)
+  const hasExtension = /\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|json|xml|txt|pdf|mp4|webm)$/i.test(req.path);
+  if (hasExtension) {
+    return next(); // Pasar al siguiente middleware (errorHandler para 404)
+  }
+  
+  // Para todas las demás rutas (sin extensión y que no sean API/contenidos/ws),
+  // servir index.html para que el frontend maneje el routing SPA
+  const indexPath = path.join(frontendPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      // Si hay un error al servir index.html, pasar al errorHandler
+      logger.error('Error al servir index.html', err);
+      next(err);
+    }
+  });
+});
+
 // Middleware de manejo de errores (debe ser el último)
 app.use(errorHandler);
 

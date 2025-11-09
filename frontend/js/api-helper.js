@@ -55,3 +55,5 @@ window.getApiUrl = getApiUrl;
 window.apiUrl = apiUrl;
 window.fetchApi = fetchApi;
 
+
+

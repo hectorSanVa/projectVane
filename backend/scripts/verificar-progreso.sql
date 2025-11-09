@@ -62,3 +62,5 @@ WHERE p.curso_id != cont.curso_id;
 -- DELETE FROM progreso p
 -- WHERE NOT EXISTS (SELECT 1 FROM contenido c WHERE c.id = p.contenido_id);
 
+
+
