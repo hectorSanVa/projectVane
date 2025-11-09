@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosco Educativo - ODS 4: Educación de Calidad</title>
+    <meta name="description" content="Plataforma educativa para zonas con conectividad limitada. Aprendizaje autónomo y sincronización offline.">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Pantalla de Login -->
+    <div id="login-screen" class="screen active">
+        <div class="login-container">
+            <div class="login-card">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <div style="font-size: 64px; margin-bottom: 10px;">📚</div>
+                    <h1>Kiosco Educativo</h1>
+                    <p class="subtitle">Educación de Calidad - ODS 4</p>
+                    <p style="color: var(--medium-gray); font-size: 13px; margin-top: 10px;">Plataforma de aprendizaje autónomo para zonas con conectividad limitada</p>
+                </div>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="matricula">Matrícula:</label>
+                        <input type="text" id="matricula" name="matricula" required 
+                               placeholder="Ingresa tu matrícula">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Contraseña:</label>
+                        <input type="password" id="password" name="password" required 
+                               placeholder="Ingresa tu contraseña">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+                </form>
+                <div id="login-error" class="error-message"></div>
+                <div class="login-info">
+                    <p><strong>Usuarios de prueba:</strong></p>
+                    <ul>
+                        <li>Estudiante: estudiante01 / estudiante123</li>
+                        <li>Tutor: tutor01 / tutor123</li>
+                    </ul>
+                    <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+                    <p><strong>¿No tienes cuenta?</strong></p>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn btn-secondary" onclick="mostrarRegistroEstudiante()" style="flex: 1;">
+                            Registrarse como Estudiante
+                        </button>
+                        <button class="btn btn-secondary" onclick="mostrarRegistroTutor()" style="flex: 1;">
+                            Registrarse como Tutor
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pantalla de Registro -->
+    <div id="register-screen" class="screen hidden">
+        <div class="login-container">
+            <div class="login-card">
+                <h1>Crear Cuenta</h1>
+                <p class="subtitle" id="register-subtitle">Completa los datos para registrarte</p>
+                
+                <form id="register-form">
+                    <div class="form-group">
+                        <label>Matrícula:</label>
+                        <input type="text" id="register-matricula" class="form-control" required 
+                               placeholder="Ej: estudiante01" autocomplete="username">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Contraseña:</label>
+                        <input type="password" id="register-password" class="form-control" required 
+                               placeholder="Mínimo 6 caracteres" minlength="6" autocomplete="new-password">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Confirmar Contraseña:</label>
+                        <input type="password" id="register-password-confirm" class="form-control" required 
+                               placeholder="Confirma tu contraseña" autocomplete="new-password">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Nombre (opcional):</label>
+                        <input type="text" id="register-nombre" class="form-control" 
+                               placeholder="Tu nombre completo">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email (opcional):</label>
+                        <input type="email" id="register-email" class="form-control" 
+                               placeholder="tu@email.com" autocomplete="email">
+                    </div>
+                    
+                    <input type="hidden" id="register-rol" value="estudiante">
+                    
+                    <button type="submit" class="btn btn-primary" id="register-btn" style="width: 100%;">
+                        Crear Cuenta
+                    </button>
+                    
+                    <button type="button" class="btn btn-secondary" onclick="volverALogin()" style="width: 100%; margin-top: 10px;">
+                        Volver al Login
+                    </button>
+                </form>
+                
+                <div id="register-error" class="error-message" style="display: none; margin-top: 15px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pantalla Principal -->
+    <div id="main-screen" class="screen">
+        <header class="header">
+            <h1>Kiosco Educativo</h1>
+            <div class="header-info">
+                <span id="user-name"></span>
+                <span id="connection-status" class="status-badge offline">Offline</span>
+                <button id="logout-btn" class="btn btn-secondary" onclick="handleLogout()">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <div class="container">
+            <!-- Panel de Estudiante -->
+            <div id="student-panel" class="panel hidden">
+                <div class="panel-header">
+                    <h2>Panel de Estudiante</h2>
+                    <div>
+                        <button id="student-dashboard-btn" class="btn btn-secondary">Dashboard</button>
+                        <button id="student-cursos-btn" class="btn btn-primary">Mis Cursos</button>
+                        <button id="student-chat-btn" class="btn btn-secondary">Chat con Tutor</button>
+                        <button id="sync-btn" class="btn btn-primary">Sincronizar</button>
+                    </div>
+                </div>
+                
+                <!-- Vista Dashboard -->
+                <div id="student-dashboard" class="student-section">
+                    <h3>Mi Progreso</h3>
+                    <div id="dashboard-stats" class="dashboard-stats"></div>
+                    <div id="dashboard-cursos-progress" class="dashboard-cursos-progress"></div>
+                    <div id="dashboard-calificaciones" class="dashboard-calificaciones">
+                        <h4>Últimas Calificaciones</h4>
+                        <div id="calificaciones-list"></div>
+                    </div>
+                </div>
+                
+                <!-- Vista Cursos -->
+                <div id="student-cursos" class="student-section hidden">
+                    <!-- Vista de Mis Cursos -->
+                    <div id="cursos-view" class="cursos-view">
+                        <div class="view-header">
+                            <h3>Mis Cursos</h3>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <div class="search-container">
+                                    <input type="text" id="search-cursos" class="form-control search-input" 
+                                           placeholder="Buscar cursos..." 
+                                           onkeyup="filtrarCursos()">
+                                    <span class="search-icon">🔍</span>
+                                </div>
+                                <button class="btn btn-secondary" onclick="mostrarExplorarTutores()" style="white-space: nowrap;">
+                                    Explorar Tutores
+                                </button>
+                                <button class="btn btn-secondary" onclick="mostrarCursosDisponibles()" style="white-space: nowrap;">
+                                    Ver Todos los Cursos
+                                </button>
+                            </div>
+                        </div>
+                        <div id="cursos-list" class="cursos-grid"></div>
+                    </div>
+                    
+                    <!-- Vista de Explorar Tutores -->
+                    <div id="tutores-view" class="cursos-view hidden">
+                        <div class="view-header">
+                            <button onclick="volverAMisCursos()" class="btn-back" style="margin-bottom: 15px;">
+                                <span class="icon-back">←</span> Volver a Mis Cursos
+                            </button>
+                            <h3>Explorar Tutores</h3>
+                            <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px;">
+                                <div class="search-container">
+                                    <input type="text" id="search-tutores" class="form-control search-input" 
+                                           placeholder="Buscar tutor..." 
+                                           onkeyup="filtrarTutores()">
+                                    <span class="search-icon">🔍</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="tutores-list" class="cursos-grid"></div>
+                    </div>
+                    
+                    <!-- Vista de Cursos de un Tutor -->
+                    <div id="student-tutor-cursos-view" class="cursos-view hidden">
+                        <div class="view-header">
+                            <button onclick="volverATutores()" class="btn-back" style="margin-bottom: 15px;">
+                                <span class="icon-back">←</span> Volver a Tutores
+                            </button>
+                            <h3 id="student-tutor-cursos-titulo">Cursos del Tutor</h3>
+                        </div>
+                        <div id="student-tutor-cursos-list" class="cursos-grid"></div>
+                    </div>
+                    
+                    <div id="curso-detalle" class="curso-detalle-view hidden">
+                        <div class="detalle-header">
+                            <button onclick="volverACursos()" class="btn-back">
+                                <span class="icon-back">←</span> Volver a Cursos
+                            </button>
+                            <h2 id="curso-nombre" class="curso-titulo"></h2>
+                        </div>
+                        <div id="contenidos-list" class="contenidos-grid"></div>
+                    </div>
+                </div>
+                
+                <!-- Vista Chat -->
+                <div id="student-chat" class="student-section hidden">
+                    <div class="chat-container">
+                        <h3>Chat con Tutor</h3>
+                        <div id="student-chat-messages" class="chat-messages"></div>
+                        <div class="chat-input-container">
+                            <input type="text" id="student-chat-input" placeholder="Escribe un mensaje al tutor..." 
+                                   class="chat-input">
+                            <button id="student-send-btn" class="btn btn-primary">Enviar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel de Tutor -->
+            <div id="tutor-panel" class="panel hidden">
+                <div class="panel-header">
+                    <h2>Panel de Tutor</h2>
+                    <div>
+                        <button id="tutor-cursos-btn" class="btn btn-primary">Mis Cursos</button>
+                        <button id="tutor-estudiantes-btn" class="btn btn-secondary">Estudiantes</button>
+                        <button id="tutor-chat-btn" class="btn btn-secondary">Chat</button>
+                    </div>
+                </div>
+                
+                <!-- Vista Cursos -->
+                <div id="tutor-cursos-view" class="tutor-section hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3>Mis Cursos</h3>
+                        <button id="tutor-crear-curso-btn" class="btn btn-primary">+ Crear Curso</button>
+                    </div>
+                    <div id="tutor-cursos-list" class="cursos-grid"></div>
+                </div>
+                
+                <!-- Vista Estudiantes -->
+                <div id="tutor-estudiantes-view" class="tutor-section hidden">
+                    <h3>Mis Estudiantes</h3>
+                    <div id="tutor-estudiantes-list" class="estudiantes-grid"></div>
+                </div>
+                
+                <!-- Vista Chat -->
+                <div id="tutor-chat-view" class="tutor-section hidden">
+                    <div class="chat-container">
+                        <h3>Chat con Estudiantes</h3>
+                        <div id="estudiantes-list" class="estudiantes-list"></div>
+                        <div id="chat-messages" class="chat-messages"></div>
+                        <div class="chat-input-container">
+                            <input type="text" id="chat-input" placeholder="Escribe un mensaje..." 
+                                   class="chat-input">
+                            <button id="send-btn" class="btn btn-primary">Enviar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal para visualizar contenido -->
+    <div id="content-modal" class="modal hidden">
+        <button id="content-modal-close-btn" class="modal-close" onclick="cerrarModal(); return false;" aria-label="Cerrar">&times;</button>
+        <div class="modal-content">
+            <div id="content-viewer"></div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/api-helper.js"></script>
+    <script src="js/offline-storage.js"></script>
+    <script src="js/token-refresh.js"></script>
+    <script src="js/content-manager.js"></script>
+    <script src="js/quiz.js"></script>
+    <script src="js/websocket-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/sync.js"></script>
+    <script src="js/student.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/quiz-student.js"></script>
+    <script src="js/content-viewer.js"></script>
+    <script src="js/tutor.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+
