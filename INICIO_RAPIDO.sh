@@ -75,31 +75,31 @@ echo "Esperando 10 segundos para que el servidor inicie..."
 sleep 10
 echo ""
 
-# Abrir navegador
-echo "Abriendo navegador..."
-# IMPORTANTE: Usar http://localhost:8080 en lugar de abrir el archivo directamente
-# Esto evita problemas de CORS y WebSocket en Mac
-FRONTEND_URL="http://localhost:8080"
+# Iniciar servidor frontend y abrir navegador
+echo "Iniciando servidor frontend..."
+FRONTEND_URL="http://localhost:8000"
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
+    osascript -e "tell application \"Terminal\" to do script \"cd '$SCRIPT_DIR/frontend' && python3 -m http.server 8000\""
+    sleep 2
     open "$FRONTEND_URL"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Linux
-    xdg-open "$FRONTEND_URL" 2>/dev/null || \
-    sensible-browser "$FRONTEND_URL" 2>/dev/null || \
-    echo "⚠️  No se pudo abrir el navegador. Abre manualmente: $FRONTEND_URL"
+    gnome-terminal -- bash -c "cd '$SCRIPT_DIR/frontend' && python3 -m http.server 8000; exec bash" 2>/dev/null || \
+    xterm -e "cd '$SCRIPT_DIR/frontend' && python3 -m http.server 8000" 2>/dev/null || \
+    x-terminal-emulator -e "bash -lc 'cd \"$SCRIPT_DIR/frontend\" && python3 -m http.server 8000'" 2>/dev/null || \
+    echo "⚠️  No se pudo abrir una nueva terminal para el frontend. Ejecuta manualmente: cd frontend && python3 -m http.server 8000"
+    xdg-open "$FRONTEND_URL" 2>/dev/null || sensible-browser "$FRONTEND_URL" 2>/dev/null || true
 fi
 
 echo ""
 echo "========================================"
 echo "  Servidor iniciado en nueva ventana"
-echo "  Navegador abierto en http://localhost:8080"
+echo "  Navegador abierto en http://localhost:8000"
 echo "  Puedes cerrar esta ventana"
 echo "========================================"
 echo ""
 echo "💡 IMPORTANTE:"
-echo "   - El navegador se abrió en http://localhost:8080"
+echo "   - El navegador se abrió en http://localhost:8000"
 echo "   - NO abras index.html directamente (causa errores en Mac)"
 echo ""
 echo "💡 Si el servidor no inició, ejecuta manualmente:"

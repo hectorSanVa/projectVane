@@ -36,7 +36,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB máximo
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB máximo
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['.pdf', '.mp4', '.txt'];
     const ext = path.extname(file.originalname).toLowerCase();
@@ -376,6 +376,12 @@ router.post('/cursos/:cursoId/contenidos', requireTutor, upload.single('archivo'
 
   if (!nombre || nombre.trim().length === 0) {
     return res.status(400).json({ error: 'El nombre del contenido es requerido' });
+  }
+
+  // Sanitizar nombre
+  const nombreSanitizado = validator.sanitizeText(nombre, 200);
+  if (nombreSanitizado.length === 0) {
+    return res.status(400).json({ error: 'El nombre del contenido no puede estar vacío después de sanitización' });
   }
 
   // Para tipos de archivo (pdf, video), se requiere el archivo

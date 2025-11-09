@@ -8,6 +8,20 @@
     box-sizing: border-box;
 }
 
+/* Especifico para el modal de Tutor: asegurar scroll y limitar altura de textarea */
+#tutor-modal .modal-body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: auto !important;
+    max-height: calc(90vh - 160px) !important;
+}
+
+#tutor-modal textarea#contenido-texto-directo-tutor {
+    max-height: 35vh !important;
+    min-height: 120px !important;
+    resize: vertical !important;
+}
+
 :root {
     /* Colores principales modernos */
     --primary-color: #2563eb;
@@ -1116,7 +1130,7 @@ html.modal-open {
     backdrop-filter: blur(8px) !important;
     -webkit-backdrop-filter: blur(8px) !important;
     animation: fadeIn var(--transition-base);
-    overflow: hidden !important; /* Prevenir scroll en el modal */
+    overflow: auto !important; /* Permitir desplazamiento del overlay si es necesario */
     margin: 0 !important;
     padding: 0 !important;
     box-sizing: border-box !important;
@@ -1139,7 +1153,7 @@ html.modal-open {
     max-width: 100vw !important;
     max-height: 100vh !important;
     background-color: rgba(0, 0, 0, 0.85) !important;
-    overflow: hidden !important;
+    overflow: auto !important; /* Permitir desplazamiento del overlay si es necesario */
 }
 
 .modal.hidden {
@@ -1158,7 +1172,7 @@ html.modal-open {
     max-width: 1200px !important;
     max-height: 90vh !important;
     min-height: 0 !important; /* Permitir que se reduzca si es necesario */
-    overflow: hidden !important; /* Cambiar a hidden para evitar scroll en el contenedor principal */
+    overflow: hidden !important; /* El scroll se maneja dentro de .modal-body */
     position: relative !important;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important; /* Sombra más fuerte */
     animation: slideUp var(--transition-base);
@@ -1170,6 +1184,23 @@ html.modal-open {
     flex-direction: column !important;
     margin: 0 !important;
     contain: layout style paint !important; /* Aislar el contenido del modal */
+}
+
+/* Cuerpo del modal con scroll interno para que los botones sean alcanzables */
+.modal-body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: calc(90vh - 160px) !important; /* fuerza altura desplazable (header + paddings) */
+    max-height: calc(90vh - 160px) !important;
+    padding-right: 8px !important; /* espacio para scrollbar */
+    flex: 1 1 auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+}
+
+/* Evitar que el header del modal se encoja y afecte el cálculo de altura */
+.modal-header {
+    flex-shrink: 0 !important;
 }
 
 /* Asegurar que los iframes estén por debajo del botón de cerrar */

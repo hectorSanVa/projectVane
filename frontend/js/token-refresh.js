@@ -133,11 +133,20 @@ async function fetchWithAuth(url, options = {}) {
         }
     }
 
-    // Agregar token a los headers si está disponible
+    // Preparar headers sin forzar Content-Type cuando se envía FormData
     const headers = {
-        ...options.headers,
-        'Content-Type': options.headers?.['Content-Type'] || 'application/json'
+        ...options.headers
     };
+
+    // Solo establecer Content-Type por defecto para solicitudes JSON
+    // Si es FormData, permitir que el navegador establezca el boundary automáticamente
+    const isFormData = (typeof FormData !== 'undefined') && (options.body instanceof FormData);
+    if (!isFormData) {
+        headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    } else {
+        // Asegurar que no quede Content-Type heredado incorrectamente
+        if (headers['Content-Type']) delete headers['Content-Type'];
+    }
 
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -188,12 +197,38 @@ function setupFetchInterceptor() {
         // Solo interceptar solicitudes a nuestro servidor
         const apiUrl = (window.Config && window.Config.API_URL) || 'http://localhost:8080';
         
+        // Helper: detectar si la URL es un endpoint de autenticación
+        const isAuthEndpoint = (u) => {
+            try {
+                const urlObj = typeof u === 'string' ? new URL(u, window.location.origin) : u;
+                const path = urlObj.pathname || '';
+                return (
+                    path === '/api/login' ||
+                    path === '/api/logout' ||
+                    path === '/api/refresh' ||
+                    path.startsWith('/api/register')
+                );
+            } catch (_) {
+                // Fallback simple si no se puede parsear
+                const s = String(u || '');
+                return (
+                    s.includes('/api/login') ||
+                    s.includes('/api/logout') ||
+                    s.includes('/api/refresh') ||
+                    s.includes('/api/register')
+                );
+            }
+        };
+        
         // Verificar si la URL es relativa o absoluta
         let shouldIntercept = false;
         if (typeof url === 'string') {
             // Si la URL es relativa (empieza con /), interceptar si es para nuestro servidor
             if (url.startsWith('/api') || url.startsWith('/contenidos') || url.startsWith('/health')) {
-                shouldIntercept = true;
+                // No interceptar endpoints de autenticación
+                if (!isAuthEndpoint(new URL(url, window.location.origin))) {
+                    shouldIntercept = true;
+                }
             }
             // Si la URL es absoluta, verificar si es para nuestro servidor
             else {
@@ -202,11 +237,13 @@ function setupFetchInterceptor() {
                     const apiUrlObj = new URL(apiUrl);
                     // Interceptar si es el mismo host y puerto
                     if (urlObj.hostname === apiUrlObj.hostname && urlObj.port === apiUrlObj.port) {
-                        shouldIntercept = true;
+                        if (!isAuthEndpoint(urlObj)) {
+                            shouldIntercept = true;
+                        }
                     }
                 } catch (e) {
                     // Si no se puede parsear la URL, verificar si contiene el hostname
-                    if (url.includes('localhost:8080') || url.includes(apiUrl.replace(/^https?:\/\//, ''))) {
+                    if ((url.includes('localhost:8080') || url.includes(apiUrl.replace(/^https?:\/\//, ''))) && !isAuthEndpoint(url)) {
                         shouldIntercept = true;
                     }
                 }

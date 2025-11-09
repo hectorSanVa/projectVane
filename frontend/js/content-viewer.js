@@ -655,12 +655,12 @@ async function configurarSeguimientoPDF(contenidoId, cursoId) {
     // Si ya está completado, no marcar progreso nuevamente
     if (yaCompletado) {
         console.log(`✅ PDF ${contenidoId} ya estaba completado. No se marcará progreso nuevo.`);
-        // Aún así, verificar después de 30 segundos para asegurar que se mantenga en 100%
+        // Aún así, verificar después de 10 segundos para asegurar que se mantenga en 100%
         setTimeout(() => {
             if (typeof marcarProgresoAutomatico === 'function' && !window.modalCerrandose) {
                 marcarProgresoAutomatico(cursoId, contenidoId, 100, true);
             }
-        }, 30000);
+        }, 10000);
         return;
     }
     
@@ -669,6 +669,7 @@ async function configurarSeguimientoPDF(contenidoId, cursoId) {
     let ultimoTiempo = tiempoInicio;
     let progresoMarcado = false;
     
+    const INTERVALO_COMPLETAR_MS = 10000; // antes 30000
     const intervalo = setInterval(() => {
         // Verificar si el modal se cerró
         const modalEl = document.getElementById('content-modal');
@@ -676,8 +677,8 @@ async function configurarSeguimientoPDF(contenidoId, cursoId) {
             console.log('Modal cerrado, deteniendo seguimiento de PDF');
             clearInterval(intervalo);
             
-            // Guardar progreso final si el usuario vio el PDF por más de 30 segundos
-            if (tiempoTotal >= 30000 && !progresoMarcado) {
+            // Guardar progreso final si el usuario vio el PDF por más de 10 segundos
+            if (tiempoTotal >= INTERVALO_COMPLETAR_MS && !progresoMarcado) {
                 console.log('💾 Guardando progreso final de PDF (100%) al cerrar modal');
                 if (typeof marcarProgresoAutomatico === 'function' && !window.modalCerrandose) {
                     marcarProgresoAutomatico(cursoId, contenidoId, 100, true);
@@ -1105,15 +1106,20 @@ async function configurarSeguimientoTexto(contenidoId, cursoId) {
         // Si el usuario llega al final (95% o más), marcar como completado
         if (scrollMaximo >= 95 && scrollMaximo < 100 && !yaCompletado) {
             const ahora = Date.now();
-            if (ahora - ultimaActualizacion >= INTERVALO_ACTUALIZACION) {
-                ultimaActualizacion = ahora;
-                console.log('✅ Texto completado (95%+), marcando como completado');
-                if (typeof marcarProgresoAutomatico === 'function' && !window.modalCerrandose) {
-                    marcarProgresoAutomatico(cursoId, contenidoId, 100, true);
-                    yaCompletado = true;
+            // También, si han pasado 10s de visualización continua, marcar como completado automáticamente
+            if (!progresoMarcado) {
+                tiempoTotal += ahora - ultimoTiempo;
+                if (tiempoTotal >= INTERVALO_COMPLETAR_MS) {
+                    console.log('⏱️ Tiempo umbral alcanzado, marcando PDF como completado (100%)');
+                    if (typeof marcarProgresoAutomatico === 'function' && !window.modalCerrandose) {
+                        marcarProgresoAutomatico(cursoId, contenidoId, 100, true);
+                        progresoMarcado = true;
+                    }
                 }
             }
         }
+        
+        ultimoTiempo = ahora;
     };
     
     // Agregar listener de scroll

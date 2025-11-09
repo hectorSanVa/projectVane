@@ -208,6 +208,25 @@ function mostrarPantallaLogin() {
     if (loginScreen) {
         loginScreen.classList.add('active');
         loginScreen.classList.remove('hidden');
+        // Resetear estado del formulario de login
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            const submitBtn = loginForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Iniciar Sesión';
+            }
+            const errorEl = document.getElementById('login-error');
+            if (errorEl) {
+                errorEl.textContent = '';
+                errorEl.classList.remove('show');
+                errorEl.style.display = 'none';
+            }
+            const matriculaEl = document.getElementById('matricula');
+            const passwordEl = document.getElementById('password');
+            if (matriculaEl) matriculaEl.value = '';
+            if (passwordEl) passwordEl.value = '';
+        }
     }
     if (mainScreen) {
         mainScreen.classList.remove('active');
